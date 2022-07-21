@@ -1,0 +1,83 @@
+---
+title: "Liu et al., 2015 analysis"
+output: html_notebook
+---
+
+```{r load libraries}
+library(tidyverse)
+library(googlesheets4)
+library(ggplot2)
+library(magrittr)
+
+# get the raw data
+raw_data <- read_sheet('https://docs.google.com/spreadsheets/d/1eNJgoZ0umU94Rsk7702mCqSzA2pwBAhN93TfDRMwVLo/edit')
+
+```
+
+```{r process the raw data: genes in MB nbs}
+
+raw_data %>%
+  mutate_if(is.numeric, ~ round(., 1)) %>%
+  rename(gene = ...1) %>%
+  select(contains(c('gene', 'MB_'))) %>%
+  pivot_longer(!gene, names_to = "TimePoint", values_to = "count") %>%
+  # add another column to separate the MB from AL
+  mutate(TimePoint = sub('MB_', '',  TimePoint),
+         TimePoint = sub('_rep.*', '',  TimePoint),
+  gene = as.character(gene)) %>%
+    group_by(gene, TimePoint) %>%
+  summarise(count = mean(count)) %>%
+  mutate_if(is.numeric, ~ round(., 1)) -> processed_data
+
+# which genes to filter by
+
+processed_data %>%
+  filter(
+    gene %in% c(
+      'lilli',
+      'hang',
+      'tap',
+      'kr-h1',
+      'dve',
+      'zfh2',
+      'sqz',
+      'scrt',
+      'atf6',
+      'TfAP-2',
+      'MBD-R2',
+      'gsb',
+      'gsb-n'
+    )
+  ) -> candidate_processed_data
+
+```
+ 
+```{r plot data: genes in MB nbs}
+
+# not averaged
+# to lock in the order of TimePoints
+timePoint_order <- c("24hALH", "50hALH", "84hALH", "36hAP ")
+
+candidate_processed_data %<>%
+  arrange(match(TimePoint, timePoint_order)) %>%
+  mutate(
+    TimePoint = factor(
+      TimePoint,
+      levels = unique(TimePoint)
+    ))
+  
+# plot the data in a heatmap
+    ggplot(candidate_processed_data) +
+      aes(x = TimePoint, y = gene, fill = count) +
+      geom_tile(size = 1.2) +
+      scale_fill_distiller(palette = "RdYlBu",
+                           direction = -1) +
+      theme_minimal() +
+      theme(axis.text.x = element_text(angle = -90)) +
+      labs(title = "Genes in MB neuroblasts",
+              caption = "Liu et al., 2015")
+
+    
+```
+
+
