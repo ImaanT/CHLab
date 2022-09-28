@@ -1,0 +1,54 @@
+---
+title: "Liu et al., 2013"
+output: html_document
+date: '2022-09-28'
+---
+
+```{r setup }
+library(tidyverse)
+library(googlesheets4)
+library(ggplot2)
+library(magrittr)
+
+gsheet_link <- "https://docs.google.com/spreadsheets/u/0/d/1jhj30JSEV7EVn1O9JrpsclVdW1x6gRD34Q3GwQC4COk/edit"
+
+raw_data <-  gsheet_link %>%
+  # This will provide a list of all the Google Sheets sheets.
+  sheet_names() %>%
+  set_names(c("Archaea", "Bacteria", "Fungi", "Protists", "Plants", "Metazoa",
+                "biological complexity")) %>%
+  # This will consolidate the data after reading each sheet recursively
+  map_df(read_sheet, ss = gsheet_link, .id = "Sheet") 
+```
+
+```{r processed-data}
+
+
+raw_data %>%
+  filter(Sheet == "biological complexity") %>%
+  mutate(nonCoding = Genome_Size - Coding_Bases) %>%
+  select(
+    Species,
+    Phylogenetic_Group,
+    complexityMeanNumberOfDifferentCellyTypes,
+    Genome_Size,
+    Coding_Bases,
+    nonCoding
+  ) %>%
+  pivot_longer(c('Coding_Bases', 'nonCoding')) %>%
+  rename(coding_nonCoding = name, base_pairs = value) -> processed
+
+# plot
+ggplot(data= processed) +
+  aes(Genome_Size, base_pairs) +
+  geom_point(aes(color = Phylogenetic_Group,
+                 size = complexityMeanNumberOfDifferentCellyTypes,
+                 alpha= coding_nonCoding)) + 
+  scale_y_log10(
+    name = "base pairs") + 
+  scale_x_log10(
+    name = "Genome size") +
+    scale_alpha_manual(values = c(2, 0.2)) -> plot
+
+```
+
